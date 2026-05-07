@@ -1,6 +1,6 @@
 import { createReadStream } from "node:fs";
 import { createServer } from "node:http";
-import { extname} from "node:path";
+import { extname, normalize, join } from "node:path";
 
 const port = Number(process.env.PORT || 8000);
 
@@ -11,11 +11,27 @@ const contentTypes = {
     ".json": "application/json; charset=utf-8",
 };
 
+const root = process.cwd();
+
 const server = createServer((request, response) => {
-    response.writeHead(200, {
-        "content-type": contentTypes[extname(request.url)] || "application/octet-stream",
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
+    const filePath = normalize(join(root, pathname));
+
+    const stream = createReadStream(filePath);
+    
+    stream.on("error", () => {
+        response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        response.end("Not found");
     });
-    createReadStream(request.url).pipe(response);
+
+    stream.on("open", () => {
+        response.writeHead(200, {
+            "content-type": contentTypes[extname(filePath)] || "application/octet-stream",
+        });
+    });
+
+    stream.pipe(response);
 });
 
 server.listen(port, () => {
