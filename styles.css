@@ -1,6 +1,7 @@
 :root {
   color-scheme: dark;
   --bg: #10151f;
+  --panel: #182232;
 }
 
 * {
@@ -19,4 +20,59 @@ body {
   width: min(1180px, 100%);
   margin: 0 auto;
   padding: 24px;
+}
+
+.panel {
+  border: 1px solid #2a3a54;
+  border-radius: 16px;
+  padding: 20px;
+  background: rgba(24, 34, 50, 0.94);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.board-wrap {
+  overflow: auto;
+}
+
+.board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(15, 36px);
+  grid-template-rows: repeat(13, 36px);
+  width: 540px;
+  height: 468px;
+  border: 4px solid #0b1019;
+  background: #162030;
+}
+
+.cell {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.cell.floor {
+  background: var(--floor);
+}
+
+.cell.wall {
+  background: var(--wall);
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.12);
+}
+
+.cell.block {
+  background: var(--block);
+}
+
+@media (max-width: 980px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+  }
 }
