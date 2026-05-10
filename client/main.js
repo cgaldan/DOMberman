@@ -15,7 +15,7 @@ function view() {
 }
 
 function gameView() {
-    return h("section", { classname: "game-layout"},
+    return h("section", { className: "game-layout"},
         h("div", { className: "panel" },
             h("div", { className: "board-wrap" },
                 h("div", { 
