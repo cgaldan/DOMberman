@@ -30,15 +30,28 @@ export function createMap() {
     return { width: BOARD_WIDTH, height: BOARD_HEIGHT, tiles };
 }
 
-export function createGame() {
+export function createGame(players) {
     const map = createMap();
     const now = Date.now();
 
     return {
         status: "playing",
         map,
+        players: players.map(player => createPlayer(player)),
         startedAt: now,
         updatedAt: now,
+    };
+}
+
+export function createPlayer(player) {
+    const spawn = SPAWNS[0];
+    return {
+        id: player.id,
+        nickname: player.nickname,
+        x: spawn.x,
+        y: spawn.y,
+        spawnX: spawn.x,
+        spawnY: spawn.y,
     };
 }
 
