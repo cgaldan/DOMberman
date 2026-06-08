@@ -73,20 +73,32 @@ function gameView() {
     return h("section", { className: "game-layout"},
         h("div", { className: "panel" },
             h("div", { className: "board-wrap" },
-                h("div", { 
+                h("div", {
                     className: "board",
                     style: {
-                        gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${TILE_SIZE}px)`,
-                        gridTemplateRows: `repeat(${BOARD_HEIGHT}, ${TILE_SIZE}px)`,
                         width: `${BOARD_WIDTH * TILE_SIZE}px`,
                         height: `${BOARD_HEIGHT * TILE_SIZE}px`,
                     },
                 },
-                boardCells(game),
-                playerViews(game),
+                staticGrid(game),
+                entitiesLayer(game),
             ),
         ),
     ));
+}
+
+function staticGrid(game) {
+    return h("div", {
+        className: "static-grid",
+        style: {
+            gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${TILE_SIZE}px)`,
+            gridTemplateRows: `repeat(${BOARD_HEIGHT}, ${TILE_SIZE}px)`,
+        },
+    }, boardCells(game));
+}
+
+function entitiesLayer(game) {
+    return h("div", { className: "entities-layer" }, playerViews(game));
 }
 
 function boardCells(game) {

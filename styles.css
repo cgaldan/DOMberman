@@ -62,13 +62,22 @@ body {
 
 .board {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(15, 36px);
-  grid-template-rows: repeat(13, 36px);
   width: 540px;
   height: 468px;
   border: 4px solid #0b1019;
   background: #162030;
+}
+
+.static-grid {
+  display: grid;
+  grid-template-columns: repeat(15, 36px);
+  grid-template-rows: repeat(13, 36px);
+}
+
+.entities-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .cell {
