@@ -2,6 +2,7 @@ export const TILE_SIZE = 36;
 export const BOARD_WIDTH = 15;
 export const BOARD_HEIGHT = 13;
 export const BASE_SPEED = 5;
+export const COLLISION_MARGIN = 0.1;
 
 export const TILE = {
     FLOOR: "floor",
@@ -65,21 +66,50 @@ export function movePlayer(game, player, input = {}, deltaMs = 0) {
     }
     
     const distance = player.speed * (deltaMs / 1000);
-    const nextX = clamp(player.x + direction.x * distance, 1, BOARD_WIDTH - 2);
-    const nextY = clamp(player.y + direction.y * distance, 1, BOARD_HEIGHT - 2);
     let moved = false;
-    
-    if (canMove(game.map, Math.round(nextX), Math.round(player.y))) {
-        player.x = nextX;
-        moved = true;
+
+    if (direction.x) {
+        moved = moveAxis(game, player, "x", direction.x * distance) || moved;
     }
-    
-    if (canMove(game.map, Math.round(player.x), Math.round(nextY))) {
-        player.y = nextY;
-        moved = true;
+
+    if (direction.y) {
+        moved = moveAxis(game, player, "y", direction.y * distance) || moved;
     }
-    
+
     return moved;
+}
+
+function moveAxis(game, player, axis, delta) {
+    const limit = (axis === "x" ? BOARD_WIDTH : BOARD_HEIGHT) - 2;
+    const target = clamp(player[axis] + delta, 1, limit);
+
+    if (canStand(game.map, withAxis(player, axis, target))) {
+        player[axis] = target;
+        return true;
+    }
+
+    return false;
+}
+
+function withAxis(point, axis, value) {
+    return axis === "x" ? { x: value, y: point.y } : { x: point.x, y: value };
+}
+
+function canStand(map, { x, y }) {
+    const left = Math.floor(x + COLLISION_MARGIN);
+    const right = Math.floor(x + 1 - COLLISION_MARGIN);
+    const top = Math.floor(y + COLLISION_MARGIN);
+    const bottom = Math.floor(y + 1 - COLLISION_MARGIN);
+
+    for (let tileY = top; tileY <= bottom; tileY++) {
+        for (let tileX = left; tileX <= right; tileX++) {
+            if (getTile(map, tileX, tileY) !== TILE.FLOOR) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 function normalizeDirection(input) {
@@ -112,8 +142,4 @@ function isWall(x, y) {
 
 function isSpawnSafeTile(x, y) {
     return SPAWNS.some(spawn => Math.abs(spawn.x - x) + Math.abs(spawn.y - y) <= 2);
-}
-
-export function canMove(map, x, y) {
-    return getTile(map, x, y) === TILE.FLOOR;
 }
