@@ -4,22 +4,69 @@ import {
     BOARD_WIDTH,
     TILE_SIZE,
     createGame,
+    movePlayer,
 } from "../shared/game.js";
+
+const KEYS = {
+    arrowup: "up",
+    w: "up",
+    arrowdown: "down",
+    s: "down",
+    arrowleft: "left",
+    a: "left",
+    arrowright: "right",
+    d: "right",
+};
 
 const playerMeta = { id: "0", nickname: "You" };
 
 let game = createGame([playerMeta]);
 
-createApp({
-    root: document.getElementById("app"),
-    view,
-}).mount();
+const input = emptyInput();
+let lastFrameAt = null;
+
+const root = document.getElementById("app");
+const app = createApp({ root, view }).mount();
+
+focusBoard();
+requestAnimationFrame(frame);
 
 function view() {
     const player = game.players[0];
     return h("main", {
         className: "app",
+        tabIndex: 0,
+        onKeyDown: event => handleKey(event, true),
+        onKeyUp: event => handleKey(event, false),
     }, gameView(player));
+}
+
+function handleKey(event, pressed) {
+    const flag = KEYS[event.key.toLowerCase()];
+    if (!flag) return;
+
+    event.preventDefault();
+    input[flag] = pressed;
+}
+
+function frame(now) {
+    const deltaMs = lastFrameAt === null ? 0 : now - lastFrameAt;
+    lastFrameAt = now;
+
+    if (movePlayer(game, game.players[0], input, deltaMs)) {
+        app.render();
+    }
+
+    requestAnimationFrame(frame);
+}
+
+function emptyInput() {
+    return { up: false, down: false, left: false, right: false };
+}
+
+function focusBoard() {
+    const main = root.querySelector(".app");
+    if (main) main.focus();
 }
 
 function gameView() {

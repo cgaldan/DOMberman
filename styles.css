@@ -28,6 +28,10 @@ body {
   place-items: center;
 }
 
+.app:focus {
+  outline: none;
+}
+
 .panel {
   border: 1px solid #2a3a54;
   border-radius: 16px;
