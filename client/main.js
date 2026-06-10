@@ -1,4 +1,4 @@
-import { createApp, h } from "../framework/index.js";
+import { h, render, patch } from "../framework/index.js";
 import {
     BOARD_HEIGHT,
     BOARD_WIDTH,
@@ -6,6 +6,8 @@ import {
     createGame,
     movePlayer,
 } from "../shared/game.js";
+
+const PLAYER_SIZE = 28;
 
 const KEYS = {
     arrowup: "up",
@@ -26,19 +28,26 @@ const input = emptyInput();
 let lastFrameAt = null;
 
 const root = document.getElementById("app");
-const app = createApp({ root, view }).mount();
 
+let boardEl;
+let prevEntities;
+
+mountGame();
 focusBoard();
 requestAnimationFrame(frame);
 
-function view() {
-    const player = game.players[0];
-    return h("main", {
+function mountGame() {
+    prevEntities = entitiesLayer(game);
+
+    const tree = h("main", {
         className: "app",
         tabIndex: 0,
         onKeyDown: event => handleKey(event, true),
         onKeyUp: event => handleKey(event, false),
-    }, gameView(player));
+    }, gameView());
+
+    render(tree, root);
+    boardEl = root.querySelector(".board");
 }
 
 function handleKey(event, pressed) {
@@ -54,7 +63,9 @@ function frame(now) {
     lastFrameAt = now;
 
     if (movePlayer(game, game.players[0], input, deltaMs)) {
-        app.render();
+        const nextEntities = entitiesLayer(game);
+        patch(boardEl, prevEntities, nextEntities, 1);
+        prevEntities = nextEntities;
     }
 
     requestAnimationFrame(frame);
@@ -73,20 +84,32 @@ function gameView() {
     return h("section", { className: "game-layout"},
         h("div", { className: "panel" },
             h("div", { className: "board-wrap" },
-                h("div", { 
+                h("div", {
                     className: "board",
                     style: {
-                        gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${TILE_SIZE}px)`,
-                        gridTemplateRows: `repeat(${BOARD_HEIGHT}, ${TILE_SIZE}px)`,
                         width: `${BOARD_WIDTH * TILE_SIZE}px`,
                         height: `${BOARD_HEIGHT * TILE_SIZE}px`,
                     },
                 },
-                boardCells(game),
-                playerViews(game),
+                staticGrid(game),
+                prevEntities,
             ),
         ),
     ));
+}
+
+function staticGrid(game) {
+    return h("div", {
+        className: "static-grid",
+        style: {
+            gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${TILE_SIZE}px)`,
+            gridTemplateRows: `repeat(${BOARD_HEIGHT}, ${TILE_SIZE}px)`,
+        },
+    }, boardCells(game));
+}
+
+function entitiesLayer(game) {
+    return h("div", { className: "entities-layer" }, playerViews(game));
 }
 
 function boardCells(game) {
@@ -108,10 +131,10 @@ function playerViews(game) {
 }
 
 function entityStyle(x, y) {
+    const offset = (TILE_SIZE - PLAYER_SIZE) / 2;
     return {
-        width: `${TILE_SIZE}px`,
-        height: `${TILE_SIZE}px`,
-        left: `${x * TILE_SIZE}px`,
-        top: `${y * TILE_SIZE}px`,
+        width: `${PLAYER_SIZE}px`,
+        height: `${PLAYER_SIZE}px`,
+        transform: `translate(${x * TILE_SIZE + offset}px, ${y * TILE_SIZE + offset}px)`,
     };
 }
