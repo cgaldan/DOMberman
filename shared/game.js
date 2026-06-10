@@ -3,6 +3,9 @@ export const BOARD_WIDTH = 15;
 export const BOARD_HEIGHT = 13;
 export const BASE_SPEED = 5;
 export const COLLISION_MARGIN = 0.1;
+export const STARTING_BOMBS = 1;
+export const STARTING_FLAMES = 2;
+export const BOMB_FUSE_MS = 2200;
 
 export const TILE = {
     FLOOR: "floor",
@@ -40,6 +43,7 @@ export function createGame(players) {
         status: "playing",
         map,
         players: players.map(player => createPlayer(player)),
+        bombs: [],
         startedAt: now,
         updatedAt: now,
     };
@@ -55,6 +59,8 @@ export function createPlayer(player) {
         spawnX: spawn.x,
         spawnY: spawn.y,
         speed: BASE_SPEED,
+        bombsAvailable: STARTING_BOMBS,
+        flameRange: STARTING_FLAMES,
     };
 }
 
@@ -110,6 +116,37 @@ function canStand(map, { x, y }) {
     }
 
     return true;
+}
+
+export function placeBomb(game, playerId, now = Date.now()) {
+    const player = game.players.find(candidate => candidate.id === playerId);
+    if (!player) {
+        return null;
+    }
+
+    const activeBombs = game.bombs.filter(bomb => bomb.ownerId === playerId).length;
+    if (activeBombs >= player.bombsAvailable) {
+        return null;
+    }
+
+    const x = Math.round(player.x);
+    const y = Math.round(player.y);
+    if (game.bombs.some(bomb => bomb.x === x && bomb.y === y)) {
+        return null;
+    }
+
+    const bomb = {
+        id: `${playerId}-${now}-${game.bombs.length}`,
+        ownerId: playerId,
+        x,
+        y,
+        range: player.flameRange,
+        placedAt: now,
+        explodesAt: now + BOMB_FUSE_MS,
+    };
+
+    game.bombs.push(bomb);
+    return bomb;
 }
 
 function normalizeDirection(input) {

@@ -5,6 +5,7 @@ import {
     TILE_SIZE,
     createGame,
     movePlayer,
+    placeBomb,
 } from "../shared/game.js";
 
 const PLAYER_SIZE = 28;
@@ -25,6 +26,7 @@ const playerMeta = { id: "0", nickname: "You" };
 let game = createGame([playerMeta]);
 
 const input = emptyInput();
+let pendingBomb = false;
 let lastFrameAt = null;
 
 const root = document.getElementById("app");
@@ -51,7 +53,15 @@ function mountGame() {
 }
 
 function handleKey(event, pressed) {
-    const flag = KEYS[event.key.toLowerCase()];
+    const key = event.key.toLowerCase();
+
+    if (key === " ") {
+        if (pressed) pendingBomb = true;
+        event.preventDefault();
+        return;
+    }
+
+    const flag = KEYS[key];
     if (!flag) return;
 
     event.preventDefault();
@@ -62,7 +72,20 @@ function frame(now) {
     const deltaMs = lastFrameAt === null ? 0 : now - lastFrameAt;
     lastFrameAt = now;
 
+    let changed = false;
+
+    if (pendingBomb) {
+        if (placeBomb(game, game.players[0].id, now)) {
+            changed = true;
+        }
+        pendingBomb = false;
+    }
+
     if (movePlayer(game, game.players[0], input, deltaMs)) {
+        changed = true;
+    }
+
+    if (changed) {
         const nextEntities = entitiesLayer(game);
         patch(boardEl, prevEntities, nextEntities, 1);
         prevEntities = nextEntities;
@@ -109,7 +132,7 @@ function staticGrid(game) {
 }
 
 function entitiesLayer(game) {
-    return h("div", { className: "entities-layer" }, playerViews(game));
+    return h("div", { className: "entities-layer" }, playerViews(game), bombViews(game));
 }
 
 function boardCells(game) {
@@ -128,6 +151,13 @@ function playerViews(game) {
         style: entityStyle(player.x, player.y),
         title: player.nickname,
     }, player.nickname.slice(0, 1).toUpperCase()));
+}
+
+function bombViews(game) {
+    return game.bombs.map(bomb => h("div", {
+        className: "entity bomb",
+        style: entityStyle(bomb.x, bomb.y),
+    }));
 }
 
 function entityStyle(x, y) {
