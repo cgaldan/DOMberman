@@ -101,15 +101,15 @@ body {
 
 .entity {
   position: absolute;
+  top: 0;
+  left: 0;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
   border-radius: 50%;
-  transform: translate(3px, 3px);
   font-size: 12px;
   font-weight: 800;
   color: #111;
+  will-change: transform;
 }
 
 .player-0 {

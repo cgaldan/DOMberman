@@ -7,6 +7,8 @@ import {
     movePlayer,
 } from "../shared/game.js";
 
+const PLAYER_SIZE = 28;
+
 const KEYS = {
     arrowup: "up",
     w: "up",
@@ -129,10 +131,10 @@ function playerViews(game) {
 }
 
 function entityStyle(x, y) {
+    const offset = (TILE_SIZE - PLAYER_SIZE) / 2;
     return {
-        width: `${TILE_SIZE}px`,
-        height: `${TILE_SIZE}px`,
-        left: `${x * TILE_SIZE}px`,
-        top: `${y * TILE_SIZE}px`,
+        width: `${PLAYER_SIZE}px`,
+        height: `${PLAYER_SIZE}px`,
+        transform: `translate(${x * TILE_SIZE + offset}px, ${y * TILE_SIZE + offset}px)`,
     };
 }
