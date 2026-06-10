@@ -1,4 +1,4 @@
-import { createApp, h } from "../framework/index.js";
+import { h, render, patch } from "../framework/index.js";
 import {
     BOARD_HEIGHT,
     BOARD_WIDTH,
@@ -26,19 +26,26 @@ const input = emptyInput();
 let lastFrameAt = null;
 
 const root = document.getElementById("app");
-const app = createApp({ root, view }).mount();
 
+let boardEl;
+let prevEntities;
+
+mountGame();
 focusBoard();
 requestAnimationFrame(frame);
 
-function view() {
-    const player = game.players[0];
-    return h("main", {
+function mountGame() {
+    prevEntities = entitiesLayer(game);
+
+    const tree = h("main", {
         className: "app",
         tabIndex: 0,
         onKeyDown: event => handleKey(event, true),
         onKeyUp: event => handleKey(event, false),
-    }, gameView(player));
+    }, gameView());
+
+    render(tree, root);
+    boardEl = root.querySelector(".board");
 }
 
 function handleKey(event, pressed) {
@@ -54,7 +61,9 @@ function frame(now) {
     lastFrameAt = now;
 
     if (movePlayer(game, game.players[0], input, deltaMs)) {
-        app.render();
+        const nextEntities = entitiesLayer(game);
+        patch(boardEl, prevEntities, nextEntities, 1);
+        prevEntities = nextEntities;
     }
 
     requestAnimationFrame(frame);
@@ -81,7 +90,7 @@ function gameView() {
                     },
                 },
                 staticGrid(game),
-                entitiesLayer(game),
+                prevEntities,
             ),
         ),
     ));
