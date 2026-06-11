@@ -6,6 +6,7 @@ export const COLLISION_MARGIN = 0.1;
 export const STARTING_BOMBS = 1;
 export const STARTING_FLAMES = 2;
 export const BOMB_FUSE_MS = 2200;
+export const EXPLOSION_MS = 650;
 
 export const TILE = {
     FLOOR: "floor",
@@ -44,6 +45,7 @@ export function createGame(players) {
         map,
         players: players.map(player => createPlayer(player)),
         bombs: [],
+        explosions: [],
         startedAt: now,
         updatedAt: now,
     };
@@ -147,6 +149,70 @@ export function placeBomb(game, playerId, now = Date.now()) {
 
     game.bombs.push(bomb);
     return bomb;
+}
+
+export function updateExplosives(game, now = Date.now()) {
+    let changed = false;
+
+    for (const bomb of [...game.bombs]) {
+        if (bomb.explodesAt <= now) {
+            detonateBomb(game, bomb, now);
+            changed = true;
+        }
+    }
+
+    const remaining = game.explosions.filter(explosion => explosion.expiresAt > now);
+    if (remaining.length !== game.explosions.length) {
+        game.explosions = remaining;
+        changed = true;
+    }
+
+    return changed;
+}
+
+export function detonateBomb(game, bomb, now = Date.now()) {
+    const index = game.bombs.findIndex(candidate => candidate.id === bomb.id);
+    if (index === -1) {
+        return null;
+    }
+
+    game.bombs.splice(index, 1);
+
+    const explosion = {
+        id: `explosion-${bomb.id}`,
+        ownerId: bomb.ownerId,
+        tiles: computeBlastTiles(game.map, bomb.x, bomb.y, bomb.range),
+        createdAt: now,
+        expiresAt: now + EXPLOSION_MS,
+    };
+
+    game.explosions.push(explosion);
+    return explosion;
+}
+
+export function computeBlastTiles(map, originX, originY, range) {
+    const tiles = [{ x: originX, y: originY }];
+    const directions = [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 },
+    ];
+
+    for (const direction of directions) {
+        for (let distance = 1; distance <= range; distance++) {
+            const x = originX + direction.x * distance;
+            const y = originY + direction.y * distance;
+
+            if (getTile(map, x, y) !== TILE.FLOOR) {
+                break;
+            }
+
+            tiles.push({ x, y });
+        }
+    }
+
+    return tiles;
 }
 
 function normalizeDirection(input) {

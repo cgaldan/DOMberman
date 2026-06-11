@@ -6,6 +6,7 @@ import {
     createGame,
     movePlayer,
     placeBomb,
+    updateExplosives,
 } from "../shared/game.js";
 
 const PLAYER_SIZE = 28;
@@ -85,6 +86,10 @@ function frame(now) {
         changed = true;
     }
 
+    if (updateExplosives(game, now)) {
+        changed = true;
+    }
+
     if (changed) {
         const nextEntities = entitiesLayer(game);
         patch(boardEl, prevEntities, nextEntities, 1);
@@ -132,7 +137,11 @@ function staticGrid(game) {
 }
 
 function entitiesLayer(game) {
-    return h("div", { className: "entities-layer" }, playerViews(game), bombViews(game));
+    return h("div", { className: "entities-layer" },
+        playerViews(game),
+        bombViews(game),
+        explosionViews(game),
+    );
 }
 
 function boardCells(game) {
@@ -158,6 +167,21 @@ function bombViews(game) {
         className: "entity bomb",
         style: entityStyle(bomb.x, bomb.y),
     }));
+}
+
+function explosionViews(game) {
+    return game.explosions.flatMap(explosion => explosion.tiles.map(tile => h("div", {
+        className: "entity explosion",
+        style: tileStyle(tile.x, tile.y),
+    })));
+}
+
+function tileStyle(x, y) {
+    return {
+        width: `${TILE_SIZE}px`,
+        height: `${TILE_SIZE}px`,
+        transform: `translate(${x * TILE_SIZE}px, ${y * TILE_SIZE}px)`,
+    };
 }
 
 function entityStyle(x, y) {
