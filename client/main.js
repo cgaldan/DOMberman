@@ -33,6 +33,7 @@ let lastFrameAt = null;
 const root = document.getElementById("app");
 
 let boardEl;
+let prevStatic;
 let prevEntities;
 
 mountGame();
@@ -40,6 +41,7 @@ focusBoard();
 requestAnimationFrame(frame);
 
 function mountGame() {
+    prevStatic = staticGrid(game);
     prevEntities = entitiesLayer(game);
 
     const tree = h("main", {
@@ -86,8 +88,13 @@ function frame(now) {
         changed = true;
     }
 
-    if (updateExplosives(game, now)) {
+    const explosives = updateExplosives(game, now);
+    if (explosives.changed) {
         changed = true;
+    }
+
+    if (explosives.mapChanged) {
+        refreshStaticGrid();
     }
 
     if (changed) {
@@ -97,6 +104,12 @@ function frame(now) {
     }
 
     requestAnimationFrame(frame);
+}
+
+function refreshStaticGrid() {
+    const nextStatic = staticGrid(game);
+    patch(boardEl, prevStatic, nextStatic, 0);
+    prevStatic = nextStatic;
 }
 
 function emptyInput() {
@@ -119,7 +132,7 @@ function gameView() {
                         height: `${BOARD_HEIGHT * TILE_SIZE}px`,
                     },
                 },
-                staticGrid(game),
+                prevStatic,
                 prevEntities,
             ),
         ),

@@ -4,7 +4,7 @@ export const BOARD_HEIGHT = 13;
 export const BASE_SPEED = 5;
 export const COLLISION_MARGIN = 0.1;
 export const STARTING_BOMBS = 1;
-export const STARTING_FLAMES = 2;
+export const STARTING_FLAMES = 1;
 export const BOMB_FUSE_MS = 2200;
 export const EXPLOSION_MS = 650;
 
@@ -74,24 +74,25 @@ export function movePlayer(game, player, input = {}, deltaMs = 0) {
     }
     
     const distance = player.speed * (deltaMs / 1000);
+    const passableBombs = bombsUnderPlayer(game, player);
     let moved = false;
 
     if (direction.x) {
-        moved = moveAxis(game, player, "x", direction.x * distance) || moved;
+        moved = moveAxis(game, player, "x", direction.x * distance, passableBombs) || moved;
     }
 
     if (direction.y) {
-        moved = moveAxis(game, player, "y", direction.y * distance) || moved;
+        moved = moveAxis(game, player, "y", direction.y * distance, passableBombs) || moved;
     }
 
     return moved;
 }
 
-function moveAxis(game, player, axis, delta) {
+function moveAxis(game, player, axis, delta, passableBombs) {
     const limit = (axis === "x" ? BOARD_WIDTH : BOARD_HEIGHT) - 2;
     const target = clamp(player[axis] + delta, 1, limit);
 
-    if (canStand(game.map, withAxis(player, axis, target))) {
+    if (canStand(game, withAxis(player, axis, target), passableBombs)) {
         player[axis] = target;
         return true;
     }
@@ -103,7 +104,22 @@ function withAxis(point, axis, value) {
     return axis === "x" ? { x: value, y: point.y } : { x: point.x, y: value };
 }
 
-function canStand(map, { x, y }) {
+function canStand(game, { x, y }, passableBombs) {
+    for (const tile of coveredTiles(x, y)) {
+        if (getTile(game.map, tile.x, tile.y) !== TILE.FLOOR) {
+            return false;
+        }
+
+        if (hasBomb(game, tile.x, tile.y) && !passableBombs.has(tileKey(tile.x, tile.y))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function coveredTiles(x, y) {
+    const tiles = [];
     const left = Math.floor(x + COLLISION_MARGIN);
     const right = Math.floor(x + 1 - COLLISION_MARGIN);
     const top = Math.floor(y + COLLISION_MARGIN);
@@ -111,13 +127,31 @@ function canStand(map, { x, y }) {
 
     for (let tileY = top; tileY <= bottom; tileY++) {
         for (let tileX = left; tileX <= right; tileX++) {
-            if (getTile(map, tileX, tileY) !== TILE.FLOOR) {
-                return false;
-            }
+            tiles.push({ x: tileX, y: tileY });
         }
     }
 
-    return true;
+    return tiles;
+}
+
+function bombsUnderPlayer(game, player) {
+    const passable = new Set();
+
+    for (const tile of coveredTiles(player.x, player.y)) {
+        if (hasBomb(game, tile.x, tile.y)) {
+            passable.add(tileKey(tile.x, tile.y));
+        }
+    }
+
+    return passable;
+}
+
+function hasBomb(game, x, y) {
+    return game.bombs.some(bomb => bomb.x === x && bomb.y === y);
+}
+
+function tileKey(x, y) {
+    return `${x},${y}`;
 }
 
 export function placeBomb(game, playerId, now = Date.now()) {
@@ -153,11 +187,15 @@ export function placeBomb(game, playerId, now = Date.now()) {
 
 export function updateExplosives(game, now = Date.now()) {
     let changed = false;
+    let mapChanged = false;
 
     for (const bomb of [...game.bombs]) {
         if (bomb.explodesAt <= now) {
-            detonateBomb(game, bomb, now);
+            const explosion = detonateBomb(game, bomb, now);
             changed = true;
+            if (explosion && explosion.destroyedBlocks.length > 0) {
+                mapChanged = true;
+            }
         }
     }
 
@@ -167,7 +205,7 @@ export function updateExplosives(game, now = Date.now()) {
         changed = true;
     }
 
-    return changed;
+    return { changed, mapChanged };
 }
 
 export function detonateBomb(game, bomb, now = Date.now()) {
@@ -178,10 +216,21 @@ export function detonateBomb(game, bomb, now = Date.now()) {
 
     game.bombs.splice(index, 1);
 
+    const tiles = computeBlastTiles(game.map, bomb.x, bomb.y, bomb.range);
+    const destroyedBlocks = [];
+
+    for (const tile of tiles) {
+        if (getTile(game.map, tile.x, tile.y) === TILE.BLOCK) {
+            setTile(game.map, tile.x, tile.y, TILE.FLOOR);
+            destroyedBlocks.push(tile);
+        }
+    }
+
     const explosion = {
         id: `explosion-${bomb.id}`,
         ownerId: bomb.ownerId,
-        tiles: computeBlastTiles(game.map, bomb.x, bomb.y, bomb.range),
+        tiles,
+        destroyedBlocks,
         createdAt: now,
         expiresAt: now + EXPLOSION_MS,
     };
@@ -204,11 +253,16 @@ export function computeBlastTiles(map, originX, originY, range) {
             const x = originX + direction.x * distance;
             const y = originY + direction.y * distance;
 
-            if (getTile(map, x, y) !== TILE.FLOOR) {
+            const tile = getTile(map, x, y);
+            if (tile === TILE.WALL) {
                 break;
             }
 
             tiles.push({ x, y });
+
+            if (tile === TILE.BLOCK) {
+                break;
+            }
         }
     }
 
@@ -233,6 +287,10 @@ export function getTile(map, x, y) {
     }
     
     return map.tiles[y * map.width + x];
+}
+
+export function setTile(map, x, y, tile) {
+    map.tiles[y * map.width + x] = tile;
 }
 
 function clamp(value, min, max) {
