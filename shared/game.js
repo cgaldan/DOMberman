@@ -1,6 +1,7 @@
 export const TILE_SIZE = 36;
 export const BOARD_WIDTH = 15;
 export const BOARD_HEIGHT = 13;
+export const STARTING_LIVES = 3;
 export const BASE_SPEED = 5;
 export const COLLISION_MARGIN = 0.1;
 export const STARTING_BOMBS = 1;
@@ -60,9 +61,13 @@ export function createPlayer(player) {
         y: spawn.y,
         spawnX: spawn.x,
         spawnY: spawn.y,
+        lives: STARTING_LIVES,
         speed: BASE_SPEED,
         bombsAvailable: STARTING_BOMBS,
         flameRange: STARTING_FLAMES,
+        alive: true,
+        eliminated: false,
+        invulnerableUntil: 0,
     };
 }
 
@@ -199,6 +204,10 @@ export function updateExplosives(game, now = Date.now()) {
         }
     }
 
+    if (applyExplosionDamage(game, now)) {
+        changed = true;
+    }
+
     const remaining = game.explosions.filter(explosion => explosion.expiresAt > now);
     if (remaining.length !== game.explosions.length) {
         game.explosions = remaining;
@@ -267,6 +276,32 @@ export function computeBlastTiles(map, originX, originY, range) {
     }
 
     return tiles;
+}
+
+export function applyExplosionDamage(game = {}, now = Date.now()) {
+    let changed = false;
+
+    for (const player of game.players) {
+        if (player.eliminated || player.invulnerableUntil > now) continue;
+
+        const playerTile = { x: Math.round(player.x), y: Math.round(player.y) };
+        const hit = game.explosions.some(explosion => explosion.tiles.some(tile => tile.x === playerTile.x && tile.y === playerTile.y));
+        if (!hit) continue;
+
+        changed = true;
+        player.lives -= 1;
+        if (player.lives <= 0) {
+            player.alive = false;
+            player.eliminated = true;
+            continue;
+        }
+
+        player.x = player.spawnX;
+        player.y = player.spawnY;
+        player.invulnerableUntil = now + 1200;
+    }
+
+    return changed;
 }
 
 function normalizeDirection(input) {

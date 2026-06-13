@@ -35,6 +35,8 @@ const root = document.getElementById("app");
 let boardEl;
 let prevStatic;
 let prevEntities;
+let scoreboardParent;
+let prevScoreboard;
 
 mountGame();
 focusBoard();
@@ -53,6 +55,8 @@ function mountGame() {
 
     render(tree, root);
     boardEl = root.querySelector(".board");
+    scoreboardParent = root.querySelector(".board-wrap");
+    prevScoreboard = scoreboard(game);
 }
 
 function handleKey(event, pressed) {
@@ -84,8 +88,20 @@ function frame(now) {
         pendingBomb = false;
     }
 
-    if (movePlayer(game, game.players[0], input, deltaMs)) {
-        changed = true;
+    const local = game.players[0];
+    if (local && !local.eliminated) {
+        if (pendingBomb) {
+            if (placeBomb(game, local.id, now)) {
+                changed = true;
+            }
+            pendingBomb = false;
+        }
+
+        if (movePlayer(game, local, input, deltaMs)) {
+            changed = true;
+        }
+    } else {
+        pendingBomb = false;
     }
 
     const explosives = updateExplosives(game, now);
@@ -101,6 +117,13 @@ function frame(now) {
         const nextEntities = entitiesLayer(game);
         patch(boardEl, prevEntities, nextEntities, 1);
         prevEntities = nextEntities;
+
+        if (!scoreboardParent) scoreboardParent = root.querySelector(".board-wrap");
+        if (scoreboardParent) {
+            const nextScore = scoreboard(game);
+            patch(scoreboardParent, prevScoreboard, nextScore, 1);
+            prevScoreboard = nextScore;
+        }
     }
 
     requestAnimationFrame(frame);
@@ -122,7 +145,7 @@ function focusBoard() {
 }
 
 function gameView() {
-    return h("section", { className: "game-layout"},
+    return h("section", { className: "game-layout" },
         h("div", { className: "panel" },
             h("div", { className: "board-wrap" },
                 h("div", {
@@ -133,10 +156,12 @@ function gameView() {
                     },
                 },
                 prevStatic,
-                prevEntities,
+                prevEntities
+            ),
+                scoreboard(game),
             ),
         ),
-    ));
+    );
 }
 
 function staticGrid(game) {
@@ -157,6 +182,16 @@ function entitiesLayer(game) {
     );
 }
 
+function scoreboard(game) {
+    return h("div", { className: "scoreboard-overlay" },
+        h("h3", {}, "Players"),
+        ...game.players.map(player => h("div", { className: "score-row" },
+            h("span", { className: "score-player" }, player.nickname),
+            h("span", { className: "score-lives" }, player.eliminated ? "Out" : `${player.lives} lives`),
+        )),
+    );
+}
+
 function boardCells(game) {
     return game.map.tiles.map(tile => h("div", {
         className: `cell ${tile}`,
@@ -169,10 +204,10 @@ function boardCells(game) {
 
 function playerViews(game) {
     return game.players.map(player => h("div", {
-        className: `entity player-${player.id}`,
+        className: `entity player-${player.id}${player.eliminated ? " eliminated" : ""}`,
         style: entityStyle(player.x, player.y),
-        title: player.nickname,
-    }, player.nickname.slice(0, 1).toUpperCase()));
+        title: player.eliminated ? `${player.nickname} (eliminated)` : player.nickname,
+    }, player.eliminated ? "✕" : player.nickname.slice(0, 1).toUpperCase()));
 }
 
 function bombViews(game) {
