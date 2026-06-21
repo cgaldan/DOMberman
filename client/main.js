@@ -5,6 +5,10 @@ import {
     TILE_SIZE,
     createGame,
     movePlayer,
+    placeBomb,
+    updateExplosives,
+    collectPowerUp,
+    POWER_UPS,
 } from "../shared/game.js";
 
 const PLAYER_SIZE = 28;
@@ -25,18 +29,23 @@ const playerMeta = { id: "0", nickname: "You" };
 let game = createGame([playerMeta]);
 
 const input = emptyInput();
+let pendingBomb = false;
 let lastFrameAt = null;
 
 const root = document.getElementById("app");
 
 let boardEl;
+let prevStatic;
 let prevEntities;
+let scoreboardParent;
+let prevScoreboard;
 
 mountGame();
 focusBoard();
 requestAnimationFrame(frame);
 
 function mountGame() {
+    prevStatic = staticGrid(game);
     prevEntities = entitiesLayer(game);
 
     const tree = h("main", {
@@ -48,10 +57,20 @@ function mountGame() {
 
     render(tree, root);
     boardEl = root.querySelector(".board");
+    scoreboardParent = root.querySelector(".board-wrap");
+    prevScoreboard = scoreboard(game);
 }
 
 function handleKey(event, pressed) {
-    const flag = KEYS[event.key.toLowerCase()];
+    const key = event.key.toLowerCase();
+
+    if (key === " ") {
+        if (pressed) pendingBomb = true;
+        event.preventDefault();
+        return;
+    }
+
+    const flag = KEYS[key];
     if (!flag) return;
 
     event.preventDefault();
@@ -62,13 +81,57 @@ function frame(now) {
     const deltaMs = lastFrameAt === null ? 0 : now - lastFrameAt;
     lastFrameAt = now;
 
-    if (movePlayer(game, game.players[0], input, deltaMs)) {
+    let changed = false;
+
+    const local = game.players[0];
+    if (local && !local.eliminated) {
+        if (pendingBomb) {
+            if (placeBomb(game, local.id, now)) {
+                changed = true;
+            }
+            pendingBomb = false;
+        }
+
+        if (movePlayer(game, local, input, deltaMs)) {
+            changed = true;
+        }
+
+        if (collectPowerUp(game, local)) {
+            changed = true;
+        }
+    } else {
+        pendingBomb = false;
+    }
+
+    const explosives = updateExplosives(game, now);
+    if (explosives.changed) {
+        changed = true;
+    }
+
+    if (explosives.mapChanged) {
+        refreshStaticGrid();
+    }
+
+    if (changed) {
         const nextEntities = entitiesLayer(game);
         patch(boardEl, prevEntities, nextEntities, 1);
         prevEntities = nextEntities;
+
+        if (!scoreboardParent) scoreboardParent = root.querySelector(".board-wrap");
+        if (scoreboardParent) {
+            const nextScore = scoreboard(game);
+            patch(scoreboardParent, prevScoreboard, nextScore, 1);
+            prevScoreboard = nextScore;
+        }
     }
 
     requestAnimationFrame(frame);
+}
+
+function refreshStaticGrid() {
+    const nextStatic = staticGrid(game);
+    patch(boardEl, prevStatic, nextStatic, 0);
+    prevStatic = nextStatic;
 }
 
 function emptyInput() {
@@ -81,7 +144,7 @@ function focusBoard() {
 }
 
 function gameView() {
-    return h("section", { className: "game-layout"},
+    return h("section", { className: "game-layout" },
         h("div", { className: "panel" },
             h("div", { className: "board-wrap" },
                 h("div", {
@@ -91,11 +154,13 @@ function gameView() {
                         height: `${BOARD_HEIGHT * TILE_SIZE}px`,
                     },
                 },
-                staticGrid(game),
-                prevEntities,
+                prevStatic,
+                prevEntities
+            ),
+                scoreboard(game),
             ),
         ),
-    ));
+    );
 }
 
 function staticGrid(game) {
@@ -109,7 +174,22 @@ function staticGrid(game) {
 }
 
 function entitiesLayer(game) {
-    return h("div", { className: "entities-layer" }, playerViews(game));
+    return h("div", { className: "entities-layer" },
+        playerViews(game),
+        powerUpViews(game),
+        bombViews(game),
+        explosionViews(game),
+    );
+}
+
+function scoreboard(game) {
+    return h("div", { className: "scoreboard-overlay" },
+        h("h3", {}, "Players"),
+        ...game.players.map(player => h("div", { className: "score-row" },
+            h("span", { className: "score-player" }, player.nickname),
+            h("span", { className: "score-lives" }, player.eliminated ? "Out" : `${player.lives} lives`),
+        )),
+    );
 }
 
 function boardCells(game) {
@@ -124,10 +204,46 @@ function boardCells(game) {
 
 function playerViews(game) {
     return game.players.map(player => h("div", {
-        className: `entity player-${player.id}`,
+        className: `entity player-${player.id}${player.eliminated ? " eliminated" : ""}`,
         style: entityStyle(player.x, player.y),
-        title: player.nickname,
-    }, player.nickname.slice(0, 1).toUpperCase()));
+        title: player.eliminated ? `${player.nickname} (eliminated)` : player.nickname,
+    }, player.eliminated ? "✕" : player.nickname.slice(0, 1).toUpperCase()));
+}
+
+function powerUpViews(game) {
+    return game.map.powerUps.map(powerUp => h("div", {
+        className: `entity power-up power-${powerUp.type}`,
+        style: entityStyle(powerUp.x, powerUp.y),
+        title: powerUp.type,
+    }, powerUpLabel(powerUp.type)));
+}
+
+function powerUpLabel(type) {
+    if (type === POWER_UPS.BOMB) return "B";
+    if (type === POWER_UPS.FLAME) return "F";
+    return "S";
+}
+
+function bombViews(game) {
+    return game.bombs.map(bomb => h("div", {
+        className: "entity bomb",
+        style: entityStyle(bomb.x, bomb.y),
+    }));
+}
+
+function explosionViews(game) {
+    return game.explosions.flatMap(explosion => explosion.tiles.map(tile => h("div", {
+        className: "entity explosion",
+        style: tileStyle(tile.x, tile.y),
+    })));
+}
+
+function tileStyle(x, y) {
+    return {
+        width: `${TILE_SIZE}px`,
+        height: `${TILE_SIZE}px`,
+        transform: `translate(${x * TILE_SIZE}px, ${y * TILE_SIZE}px)`,
+    };
 }
 
 function entityStyle(x, y) {
