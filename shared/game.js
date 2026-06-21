@@ -8,11 +8,18 @@ export const STARTING_BOMBS = 1;
 export const STARTING_FLAMES = 1;
 export const BOMB_FUSE_MS = 2200;
 export const EXPLOSION_MS = 650;
+export const POWER_UP_CHANCE = 0.15;
 
 export const TILE = {
     FLOOR: "floor",
     WALL: "wall",
     BLOCK: "block",
+};
+
+export const POWER_UPS = {
+    BOMB: "bomb",
+    FLAME: "flame",
+    SPEED: "speed",
 };
 
 export const SPAWNS = [
@@ -34,7 +41,7 @@ export function createMap() {
         }
     }
 
-    return { width: BOARD_WIDTH, height: BOARD_HEIGHT, tiles };
+    return { width: BOARD_WIDTH, height: BOARD_HEIGHT, tiles, powerUps: [] };
 }
 
 export function createGame(players) {
@@ -232,6 +239,7 @@ export function detonateBomb(game, bomb, now = Date.now()) {
         if (getTile(game.map, tile.x, tile.y) === TILE.BLOCK) {
             setTile(game.map, tile.x, tile.y, TILE.FLOOR);
             destroyedBlocks.push(tile);
+            maybeSpawnPowerUp(game, tile.x, tile.y);
         }
     }
 
@@ -276,6 +284,37 @@ export function computeBlastTiles(map, originX, originY, range) {
     }
 
     return tiles;
+}
+
+function maybeSpawnPowerUp(game, x, y) {
+    if (Math.random() > POWER_UP_CHANCE) {
+        return;
+    }
+
+    const types = [POWER_UPS.BOMB, POWER_UPS.FLAME, POWER_UPS.SPEED];
+    const type = types[Math.floor(Math.random() * types.length)];
+    game.map.powerUps.push({ type, x, y });
+}
+
+export function collectPowerUp(game, player) {
+    const x = Math.round(player.x);
+    const y = Math.round(player.y);
+    const index = game.map.powerUps.findIndex(powerUp => powerUp.x === x && powerUp.y === y);
+    if (index === -1) {
+        return false;
+    }
+
+    const [powerUp] = game.map.powerUps.splice(index, 1);
+
+    if (powerUp.type === POWER_UPS.BOMB) {
+        player.bombsAvailable += 1;
+    } else if (powerUp.type === POWER_UPS.FLAME) {
+        player.flameRange += 1;
+    } else if (powerUp.type === POWER_UPS.SPEED) {
+        player.speed = Math.min(player.speed + 1, BASE_SPEED + 4);
+    }
+
+    return true;
 }
 
 export function applyExplosionDamage(game = {}, now = Date.now()) {

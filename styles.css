@@ -135,6 +135,17 @@ body {
   z-index: 1;
 }
 
+.entity.power-up {
+  border-radius: 8px;
+  color: #08121f;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.25);
+  z-index: 0;
+}
+
+.power-bomb { background: #ffd166; }
+.power-flame { background: #ff8c3b; }
+.power-speed { background: #5ce1a6; }
+
 .entity.eliminated { opacity: 0.32; }
 
 .scoreboard-overlay {

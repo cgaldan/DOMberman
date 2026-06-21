@@ -7,6 +7,8 @@ import {
     movePlayer,
     placeBomb,
     updateExplosives,
+    collectPowerUp,
+    POWER_UPS,
 } from "../shared/game.js";
 
 const PLAYER_SIZE = 28;
@@ -81,13 +83,6 @@ function frame(now) {
 
     let changed = false;
 
-    if (pendingBomb) {
-        if (placeBomb(game, game.players[0].id, now)) {
-            changed = true;
-        }
-        pendingBomb = false;
-    }
-
     const local = game.players[0];
     if (local && !local.eliminated) {
         if (pendingBomb) {
@@ -98,6 +93,10 @@ function frame(now) {
         }
 
         if (movePlayer(game, local, input, deltaMs)) {
+            changed = true;
+        }
+
+        if (collectPowerUp(game, local)) {
             changed = true;
         }
     } else {
@@ -177,6 +176,7 @@ function staticGrid(game) {
 function entitiesLayer(game) {
     return h("div", { className: "entities-layer" },
         playerViews(game),
+        powerUpViews(game),
         bombViews(game),
         explosionViews(game),
     );
@@ -208,6 +208,20 @@ function playerViews(game) {
         style: entityStyle(player.x, player.y),
         title: player.eliminated ? `${player.nickname} (eliminated)` : player.nickname,
     }, player.eliminated ? "✕" : player.nickname.slice(0, 1).toUpperCase()));
+}
+
+function powerUpViews(game) {
+    return game.map.powerUps.map(powerUp => h("div", {
+        className: `entity power-up power-${powerUp.type}`,
+        style: entityStyle(powerUp.x, powerUp.y),
+        title: powerUp.type,
+    }, powerUpLabel(powerUp.type)));
+}
+
+function powerUpLabel(type) {
+    if (type === POWER_UPS.BOMB) return "B";
+    if (type === POWER_UPS.FLAME) return "F";
+    return "S";
 }
 
 function bombViews(game) {
