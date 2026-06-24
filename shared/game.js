@@ -10,6 +10,13 @@ export const BOMB_FUSE_MS = 2200;
 export const EXPLOSION_MS = 650;
 export const POWER_UP_CHANCE = 0.15;
 
+export const MAX_PLAYERS = 4;
+export const MIN_PLAYERS = 2;
+export const SERVER_TICK_MS = 50;
+export const SNAPSHOT_MS = 50;
+export const LOBBY_WAIT_MS = 20000;
+export const READY_COUNTDOWN_MS = 10000;
+
 export const TILE = {
     FLOOR: "floor",
     WALL: "wall",
@@ -23,7 +30,10 @@ export const POWER_UPS = {
 };
 
 export const SPAWNS = [
-    { x: 1, y: 1 }
+    { x: 1, y: 1 },
+    { x: BOARD_WIDTH - 2, y: BOARD_HEIGHT - 2 },
+    { x: BOARD_WIDTH - 2, y: 1 },
+    { x: 1, y: BOARD_HEIGHT - 2 },
 ];
 
 export function createMap() {
@@ -51,19 +61,21 @@ export function createGame(players) {
     return {
         status: "playing",
         map,
-        players: players.map(player => createPlayer(player)),
+        players: players.map((player, index) => createPlayer(player, index)),
         bombs: [],
         explosions: [],
+        winnerId: null,
         startedAt: now,
         updatedAt: now,
     };
 }
 
-export function createPlayer(player) {
-    const spawn = SPAWNS[0];
+export function createPlayer(player, index = 0) {
+    const spawn = SPAWNS[index] || SPAWNS[0];
     return {
         id: player.id,
         nickname: player.nickname,
+        index,
         x: spawn.x,
         y: spawn.y,
         spawnX: spawn.x,
@@ -78,6 +90,58 @@ export function createPlayer(player) {
     };
 }
 
+export function tickGame(game, inputs = {}, now = Date.now(), deltaMs = SERVER_TICK_MS) {
+    if (!game || game.status !== "playing") {
+        return game;
+    }
+
+    game.updatedAt = now;
+
+    for (const player of game.players) {
+        if (player.eliminated || !player.alive) {
+            continue;
+        }
+
+        const input = inputs[player.id] || {};
+
+        if (input.dropBomb) {
+            placeBomb(game, player.id, now);
+        }
+
+        movePlayer(game, player, input, deltaMs);
+        collectPowerUp(game, player);
+    }
+
+    updateExplosives(game, now);
+    updateWinner(game);
+
+    return game;
+}
+
+function updateWinner(game) {
+    const remaining = game.players.filter(player => !player.eliminated);
+
+    if (game.players.length >= MIN_PLAYERS && remaining.length <= 1) {
+        game.status = "finished";
+        game.winnerId = remaining.length === 1 ? remaining[0].id : null;
+    }
+}
+
+export function serializeGame(game) {
+    if (!game) {
+        return null;
+    }
+
+    return {
+        status: game.status,
+        map: game.map,
+        players: game.players,
+        bombs: game.bombs,
+        explosions: game.explosions,
+        winnerId: game.winnerId,
+        updatedAt: game.updatedAt,
+    };
+}
 
 export function movePlayer(game, player, input = {}, deltaMs = 0) {
     const direction = normalizeDirection(input);
