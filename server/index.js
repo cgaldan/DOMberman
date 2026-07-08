@@ -1,6 +1,7 @@
 import { createReadStream } from "node:fs";
 import { createServer } from "node:http";
 import { extname, normalize, join } from "node:path";
+import { BombermanServer } from "./game-server.js";
 
 const port = Number(process.env.PORT || 8000);
 
@@ -33,6 +34,9 @@ const server = createServer((request, response) => {
 
     stream.pipe(response);
 });
+
+const gameServer = new BombermanServer();
+gameServer.attach(server);
 
 server.listen(port, () => {
     console.log(`Bomberman DOM running at http://localhost:${port}/`);
