@@ -21,6 +21,7 @@ const initialState = {
     socketOpen: false,
     error: "",
     server: null,
+    chatDraft: "",
 };
 
 const store = createStore(reducer, initialState);
@@ -72,6 +73,10 @@ function reducer(state = initialState, action) {
             return { ...state, server: action.server };
         case "TICK":
             return { ...state };
+        case "SET_CHAT_DRAFT":
+            return { ...state, chatDraft: action.text };
+        case "CLEAR_CHAT_DRAFT":
+            return { ...state, chatDraft: "" };
         default:
             return state;
     }
@@ -148,6 +153,7 @@ function lobbyView(state) {
             slots.map((player, index) => h("div", { className: "player-card" },
                 player ? `${index + 1}. ${player.nickname}` : `${index + 1}. Empty`)),
         ),
+        chatView(state),
         state.error ? h("p", { className: "error" }, state.error) : null,
     );
 }
@@ -178,7 +184,10 @@ function gameView(state) {
                     staticGrid(game),
                     entitiesLayer(game, state.playerId),
                 ),
-                scoreboard(game),
+                h("aside", { className: "side-panel" },
+                    scoreboard(game),
+                    chatView(state),
+                ),
             ),
         ),
     );
@@ -266,6 +275,54 @@ function scoreboard(game) {
     );
 }
 
+function chatView(state) {
+    const messages = (state.server && state.server.chat) || [];
+    const myId = state.playerId;
+    const inGame = Boolean(state.server && state.server.status === "playing");
+
+    return h("div", { className: "chat" },
+        h("h3", {}, "Chat"),
+        h("div", { className: "chat-log" },
+            messages.slice(-40).reverse().map(message => {
+                const mine = message.playerId === myId;
+                return h("div", { className: `chat-line${mine ? " mine" : ""}` },
+                    h("span", { className: "chat-nick" }, mine ? "You: " : `${message.nickname}: `),
+                    message.text,
+                );
+            }),
+        ),
+        h("form", {
+            className: "chat-form",
+            onSubmit: event => {
+                event.preventDefault();
+                sendChat();
+            },
+        },
+            h("input", {
+                className: "text-input chat-input",
+                value: state.chatDraft,
+                maxLength: "160",
+                placeholder: inGame ? "T to game" : "Message",
+                onInput: event => store.dispatch({ type: "SET_CHAT_DRAFT", text: event.target.value }),
+            }),
+            h("button", { type: "submit" }, "Send"),
+        ),
+    );
+}
+
+function sendChat() {
+    const text = store.getState().chatDraft.trim();
+    if (!text) return;
+
+    send({ type: "chat", text });
+    store.dispatch({ type: "CLEAR_CHAT_DRAFT" });
+
+    const server = store.getState().server;
+    if (server && server.status === "playing") {
+        focusApp();
+    }
+}
+
 function entityStyle(x, y) {
     const offset = (TILE_SIZE - PLAYER_SIZE) / 2;
     return {
@@ -284,11 +341,31 @@ function tileStyle(x, y) {
 }
 
 function handleKey(event, pressed) {
+    const key = event.key.toLowerCase();
+    const tag = event.target && event.target.tagName;
+    const inField = tag === "INPUT" || tag === "TEXTAREA";
+
     const state = store.getState();
     const playing = state.joined && state.server && state.server.status === "playing";
-    if (!playing) return;
 
-    const key = event.key.toLowerCase();
+    if (key === "t" && playing) {
+        if (pressed) {
+            if (inField) {
+                event.target.blur();
+                focusApp();
+            } else {
+                currentInput = emptyInput();
+                pendingBomb = false;
+                focusChat();
+            }
+        }
+        event.preventDefault();
+        return;
+    }
+
+    if (inField) return;
+
+    if (!playing) return;
 
     if (key === " ") {
         if (pressed) pendingBomb = true;
@@ -368,6 +445,11 @@ function send(message) {
 function focusApp() {
     const main = document.querySelector(".app");
     if (main) main.focus();
+}
+
+function focusChat() {
+    const input = document.querySelector(".chat-input");
+    if (input) input.focus();
 }
 
 function emptyInput() {
