@@ -30,6 +30,7 @@ export class BombermanServer {
         this.chat = [];
         this.status = "lobby";
         this.countdownEndsAt = null;
+        this.lobbyEndsAt = null;
         this.game = null;
         this.lobbyTimer = null;
         this.countdownTimer = null;
@@ -75,6 +76,8 @@ export class BombermanServer {
             this.addChat(socket, message.text);
         } else if (message.type === "restart") {
             this.restartIfFinished();
+        } else if (message.type === "start_now") {
+            this.startNow(socket);
         }
     }
 
@@ -126,12 +129,13 @@ export class BombermanServer {
         const client = this.clients.get(socket);
         if (!client || !client.playerId || this.status !== "playing") return;
 
+        const previous = this.inputs[client.playerId] || {};
         this.inputs[client.playerId] = {
             up: Boolean(input.up),
             down: Boolean(input.down),
             left: Boolean(input.left),
             right: Boolean(input.right),
-            dropBomb: Boolean(input.dropBomb),
+            dropBomb: Boolean(input.dropBomb) || Boolean(previous.dropBomb),
         };
     }
 
@@ -184,13 +188,28 @@ export class BombermanServer {
         }
 
         if (this.players.length >= MIN_PLAYERS && !this.lobbyTimer && !this.countdownTimer) {
+            this.lobbyEndsAt = Date.now() + this.lobbyWaitMs;
             this.lobbyTimer = setTimeout(() => {
                 this.lobbyTimer = null;
+                this.lobbyEndsAt = null;
                 if (this.players.length >= MIN_PLAYERS) {
                     this.startCountdown();
                 }
             }, this.lobbyWaitMs);
         }
+    }
+
+    startNow(socket) {
+        if (this.status !== "lobby" && this.status !== "countdown") {
+            return;
+        }
+
+        if (this.players.length < MIN_PLAYERS) {
+            this.send(socket, "error", { message: "Need at least 2 players to start." });
+            return;
+        }
+
+        this.startGame();
     }
 
     startCountdown() {
@@ -199,6 +218,7 @@ export class BombermanServer {
         clearTimeout(this.lobbyTimer);
         clearTimeout(this.countdownTimer);
         this.lobbyTimer = null;
+        this.lobbyEndsAt = null;
         this.status = "countdown";
         this.countdownEndsAt = Date.now() + this.readyCountdownMs;
         this.countdownTimer = setTimeout(() => this.startGame(), this.readyCountdownMs);
@@ -213,6 +233,7 @@ export class BombermanServer {
         this.lobbyTimer = null;
         this.countdownTimer = null;
         this.countdownEndsAt = null;
+        this.lobbyEndsAt = null;
         this.status = "lobby";
     }
 
@@ -229,6 +250,7 @@ export class BombermanServer {
         this.countdownTimer = null;
         this.status = "playing";
         this.countdownEndsAt = null;
+        this.lobbyEndsAt = null;
         this.game = createGame(this.players, this.seed);
         this.lastTickAt = Date.now();
         this.startLoops();
@@ -280,6 +302,7 @@ export class BombermanServer {
             maxPlayers: MAX_PLAYERS,
             minPlayers: MIN_PLAYERS,
             countdownEndsAt: this.countdownEndsAt,
+            lobbyEndsAt: this.lobbyEndsAt,
             game: serializeGame(this.game),
             chat: this.chat,
         };
