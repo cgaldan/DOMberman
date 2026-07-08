@@ -238,15 +238,21 @@ function entitiesLayer(game, myId) {
 
 function playerViews(game, myId) {
     return game.players.map(player => {
+        const disconnected = player.connected === false && !player.eliminated;
         const className = `entity player-${player.index}`
             + (player.eliminated ? " eliminated" : "")
+            + (disconnected ? " disconnected" : "")
             + (player.id === myId ? " me" : "");
+
+        const label = player.eliminated || disconnected
+            ? "✕"
+            : player.nickname.slice(0, 1).toUpperCase();
 
         return h("div", {
             className,
             style: entityStyle(player.x, player.y),
-            title: player.nickname,
-        }, player.eliminated ? "✕" : player.nickname.slice(0, 1).toUpperCase());
+            title: disconnected ? `${player.nickname} (away)` : player.nickname,
+        }, label);
     });
 }
 

@@ -11,24 +11,29 @@ import {
     tickGame,
 } from "../shared/game.js";
 
+const DISCONNECT_GRACE_MS = 30000;
+
 export class BombermanServer {
     constructor({
         lobbyWaitMs = LOBBY_WAIT_MS,
         readyCountdownMs = READY_COUNTDOWN_MS,
         tickMs = SERVER_TICK_MS,
         snapshotMs = SNAPSHOT_MS,
+        disconnectGraceMs = DISCONNECT_GRACE_MS,
         seed = Date.now(),
     } = {}) {
         this.lobbyWaitMs = lobbyWaitMs;
         this.readyCountdownMs = readyCountdownMs;
         this.tickMs = tickMs;
         this.snapshotMs = snapshotMs;
+        this.disconnectGraceMs = disconnectGraceMs;
         this.seed = seed;
         this.clients = new Map();
         this.players = [];
         this.inputs = {};
         this.playerSockets = new Map();
         this.tokens = new Map();
+        this.disconnectTimers = new Map();
         this.chat = [];
         this.status = "lobby";
         this.countdownEndsAt = null;
@@ -143,7 +148,8 @@ export class BombermanServer {
         }
 
         client.playerId = playerId;
-        player.connected = true;
+        this.setConnected(playerId, true);
+        this.clearDisconnectTimeout(playerId);
         this.playerSockets.set(playerId, socket);
         if (!this.inputs[playerId]) {
             this.inputs[playerId] = {};
@@ -187,6 +193,55 @@ export class BombermanServer {
         this.broadcastState();
     }
 
+    setConnected(playerId, connected) {
+        const lobbyPlayer = this.players.find(candidate => candidate.id === playerId);
+        if (lobbyPlayer) {
+            lobbyPlayer.connected = connected;
+        }
+
+        const gamePlayer = this.game && this.game.players.find(candidate => candidate.id === playerId);
+        if (gamePlayer) {
+            gamePlayer.connected = connected;
+        }
+    }
+
+    scheduleDisconnectTimeout(playerId) {
+        this.clearDisconnectTimeout(playerId);
+        const timer = setTimeout(() => {
+            this.disconnectTimers.delete(playerId);
+            this.dropAbsentPlayer(playerId);
+        }, this.disconnectGraceMs);
+        this.disconnectTimers.set(playerId, timer);
+    }
+
+    clearDisconnectTimeout(playerId) {
+        const timer = this.disconnectTimers.get(playerId);
+        if (timer) {
+            clearTimeout(timer);
+            this.disconnectTimers.delete(playerId);
+        }
+    }
+
+    // Grace window lapsed and they never came back: eliminate them so the
+    // next tick's winner check can end the match. No-op if they reconnected.
+    dropAbsentPlayer(playerId) {
+        if (this.status !== "playing" || !this.game) return;
+
+        const player = this.game.players.find(candidate => candidate.id === playerId);
+        if (!player || player.eliminated || player.connected) return;
+
+        player.alive = false;
+        player.eliminated = true;
+        this.broadcastState();
+    }
+
+    clearDisconnectTimeouts() {
+        for (const timer of this.disconnectTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.disconnectTimers.clear();
+    }
+
     removeClient(socket) {
         const client = this.clients.get(socket);
         if (!client) return;
@@ -194,12 +249,15 @@ export class BombermanServer {
         this.clients.delete(socket);
 
         if (client.playerId && this.playerSockets.get(client.playerId) === socket) {
-            const player = this.players.find(candidate => candidate.id === client.playerId);
-            if (player) {
-                player.connected = false;
-            }
+            this.setConnected(client.playerId, false);
             delete this.inputs[client.playerId];
             this.playerSockets.delete(client.playerId);
+
+            // Mid-game, give them a grace window to reconnect; if it lapses
+            // they are eliminated so the match can still resolve.
+            if (this.status === "playing") {
+                this.scheduleDisconnectTimeout(client.playerId);
+            }
         }
 
         if (this.status === "lobby" || this.status === "countdown") {
@@ -315,6 +373,7 @@ export class BombermanServer {
     restartIfFinished() {
         if (this.status !== "finished") return;
 
+        this.clearDisconnectTimeouts();
         this.status = "lobby";
         this.game = null;
         this.players = this.players.filter(player => player.connected);
@@ -358,6 +417,7 @@ export class BombermanServer {
         clearTimeout(this.countdownTimer);
         clearInterval(this.tickTimer);
         clearInterval(this.snapshotTimer);
+        this.clearDisconnectTimeouts();
         if (this.wss) {
             this.wss.close();
         }

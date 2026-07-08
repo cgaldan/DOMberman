@@ -87,6 +87,7 @@ export function createPlayer(player, index = 0) {
         alive: true,
         eliminated: false,
         invulnerable: 0,
+        connected: true,
     };
 }
 
@@ -392,7 +393,7 @@ export function applyExplosionDamage(game = {}) {
     let changed = false;
 
     for (const player of game.players) {
-        if (player.eliminated || player.invulnerable > 0) continue;
+        if (player.eliminated || player.invulnerable > 0 || !player.connected) continue;
 
         const playerTile = { x: Math.round(player.x), y: Math.round(player.y) };
         const hit = game.explosions.some(explosion => explosion.tiles.some(tile => tile.x === playerTile.x && tile.y === playerTile.y));
