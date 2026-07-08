@@ -278,6 +278,7 @@ function scoreboard(game) {
 function chatView(state) {
     const messages = (state.server && state.server.chat) || [];
     const myId = state.playerId;
+    const inGame = Boolean(state.server && state.server.status === "playing");
 
     return h("div", { className: "chat" },
         h("h3", {}, "Chat"),
@@ -301,7 +302,7 @@ function chatView(state) {
                 className: "text-input chat-input",
                 value: state.chatDraft,
                 maxLength: "160",
-                placeholder: "Message",
+                placeholder: inGame ? "T to game" : "Message",
                 onInput: event => store.dispatch({ type: "SET_CHAT_DRAFT", text: event.target.value }),
             }),
             h("button", { type: "submit" }, "Send"),
@@ -340,15 +341,31 @@ function tileStyle(x, y) {
 }
 
 function handleKey(event, pressed) {
-    // Never treat keys typed inside a text field (chat/nickname) as movement.
+    const key = event.key.toLowerCase();
     const tag = event.target && event.target.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    const inField = tag === "INPUT" || tag === "TEXTAREA";
 
     const state = store.getState();
     const playing = state.joined && state.server && state.server.status === "playing";
-    if (!playing) return;
 
-    const key = event.key.toLowerCase();
+    if (key === "t" && playing) {
+        if (pressed) {
+            if (inField) {
+                event.target.blur();
+                focusApp();
+            } else {
+                currentInput = emptyInput();
+                pendingBomb = false;
+                focusChat();
+            }
+        }
+        event.preventDefault();
+        return;
+    }
+
+    if (inField) return;
+
+    if (!playing) return;
 
     if (key === " ") {
         if (pressed) pendingBomb = true;
@@ -428,6 +445,11 @@ function send(message) {
 function focusApp() {
     const main = document.querySelector(".app");
     if (main) main.focus();
+}
+
+function focusChat() {
+    const input = document.querySelector(".chat-input");
+    if (input) input.focus();
 }
 
 function emptyInput() {
