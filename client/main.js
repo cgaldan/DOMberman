@@ -153,6 +153,7 @@ function lobbyView(state) {
             slots.map((player, index) => h("div", { className: "player-card" },
                 player ? `${index + 1}. ${player.nickname}` : `${index + 1}. Empty`)),
         ),
+        chatView(state),
         state.error ? h("p", { className: "error" }, state.error) : null,
     );
 }
@@ -310,7 +311,11 @@ function sendChat() {
 
     send({ type: "chat", text });
     store.dispatch({ type: "CLEAR_CHAT_DRAFT" });
-    focusApp();
+
+    const server = store.getState().server;
+    if (server && server.status === "playing") {
+        focusApp();
+    }
 }
 
 function entityStyle(x, y) {
