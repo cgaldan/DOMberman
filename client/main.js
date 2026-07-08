@@ -200,14 +200,24 @@ function boardStyle() {
     };
 }
 
+let staticGridCache = { key: null, vnode: null };
+
 function staticGrid(game) {
-    return h("div", {
-        className: "static-grid",
-        style: {
-            gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${TILE_SIZE}px)`,
-            gridTemplateRows: `repeat(${BOARD_HEIGHT}, ${TILE_SIZE}px)`,
-        },
-    }, boardCells(game));
+    const key = game.map.tiles.join(",");
+    if (key !== staticGridCache.key) {
+        staticGridCache = {
+            key,
+            vnode: h("div", {
+                className: "static-grid",
+                style: {
+                    gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${TILE_SIZE}px)`,
+                    gridTemplateRows: `repeat(${BOARD_HEIGHT}, ${TILE_SIZE}px)`,
+                },
+            }, boardCells(game)),
+        };
+    }
+
+    return staticGridCache.vnode;
 }
 
 function boardCells(game) {
