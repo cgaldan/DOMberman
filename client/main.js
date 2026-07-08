@@ -312,7 +312,7 @@ function chatView(state) {
                 className: "text-input chat-input",
                 value: state.chatDraft,
                 maxLength: "160",
-                placeholder: inGame ? "T to game" : "Message",
+                placeholder: inGame ? "Enter to send · Esc to game" : "Message",
                 onInput: event => store.dispatch({ type: "SET_CHAT_DRAFT", text: event.target.value }),
             }),
             h("button", { type: "submit" }, "Send"),
@@ -355,27 +355,27 @@ function handleKey(event, pressed) {
     const tag = event.target && event.target.tagName;
     const inField = tag === "INPUT" || tag === "TEXTAREA";
 
+    if (inField) {
+        if (key === "escape" && pressed) {
+            event.target.blur();
+            focusApp();
+        }
+        return;
+    }
+
     const state = store.getState();
     const playing = state.joined && state.server && state.server.status === "playing";
+    if (!playing) return;
 
-    if (key === "t" && playing) {
+    if (key === "enter") {
         if (pressed) {
-            if (inField) {
-                event.target.blur();
-                focusApp();
-            } else {
-                currentInput = emptyInput();
-                pendingBomb = false;
-                focusChat();
-            }
+            currentInput = emptyInput();
+            pendingBomb = false;
+            focusChat();
         }
         event.preventDefault();
         return;
     }
-
-    if (inField) return;
-
-    if (!playing) return;
 
     if (key === " ") {
         if (pressed) pendingBomb = true;
