@@ -26,6 +26,10 @@ export function patch(parent, oldVDOM, newVDOM, index = 0) {
       throw new Error("patch requires a parent DOM element.");
     }
 
+    if (oldVDOM === newVDOM) {
+      return;
+    }
+
     if (!oldVDOM) {
       parent.appendChild(createElement(newVDOM));
       return;
