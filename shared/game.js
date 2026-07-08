@@ -86,7 +86,7 @@ export function createPlayer(player, index = 0) {
         flameRange: STARTING_FLAMES,
         alive: true,
         eliminated: false,
-        invulnerableUntil: 0,
+        invulnerable: 0,
     };
 }
 
@@ -102,6 +102,10 @@ export function tickGame(game, inputs = {}, now = Date.now(), deltaMs = SERVER_T
             continue;
         }
 
+        if (player.invulnerable > 0) {
+            player.invulnerable = Math.max(0, player.invulnerable - deltaMs);
+        }
+
         const input = inputs[player.id] || {};
 
         if (input.dropBomb) {
@@ -112,7 +116,7 @@ export function tickGame(game, inputs = {}, now = Date.now(), deltaMs = SERVER_T
         collectPowerUp(game, player);
     }
 
-    updateExplosives(game, now);
+    updateExplosives(game, deltaMs);
     updateWinner(game);
 
     return game;
@@ -253,21 +257,21 @@ export function placeBomb(game, playerId, now = Date.now()) {
         x,
         y,
         range: player.flameRange,
-        placedAt: now,
-        explodesAt: now + BOMB_FUSE_MS,
+        fuse: BOMB_FUSE_MS,
     };
 
     game.bombs.push(bomb);
     return bomb;
 }
 
-export function updateExplosives(game, now = Date.now()) {
+export function updateExplosives(game, deltaMs = SERVER_TICK_MS) {
     let changed = false;
     let mapChanged = false;
 
     for (const bomb of [...game.bombs]) {
-        if (bomb.explodesAt <= now) {
-            const explosion = detonateBomb(game, bomb, now);
+        bomb.fuse -= deltaMs;
+        if (bomb.fuse <= 0) {
+            const explosion = detonateBomb(game, bomb);
             changed = true;
             if (explosion && explosion.destroyedBlocks.length > 0) {
                 mapChanged = true;
@@ -275,11 +279,15 @@ export function updateExplosives(game, now = Date.now()) {
         }
     }
 
-    if (applyExplosionDamage(game, now)) {
+    if (applyExplosionDamage(game)) {
         changed = true;
     }
 
-    const remaining = game.explosions.filter(explosion => explosion.expiresAt > now);
+    for (const explosion of game.explosions) {
+        explosion.life -= deltaMs;
+    }
+
+    const remaining = game.explosions.filter(explosion => explosion.life > 0);
     if (remaining.length !== game.explosions.length) {
         game.explosions = remaining;
         changed = true;
@@ -288,7 +296,7 @@ export function updateExplosives(game, now = Date.now()) {
     return { changed, mapChanged };
 }
 
-export function detonateBomb(game, bomb, now = Date.now()) {
+export function detonateBomb(game, bomb) {
     const index = game.bombs.findIndex(candidate => candidate.id === bomb.id);
     if (index === -1) {
         return null;
@@ -312,8 +320,7 @@ export function detonateBomb(game, bomb, now = Date.now()) {
         ownerId: bomb.ownerId,
         tiles,
         destroyedBlocks,
-        createdAt: now,
-        expiresAt: now + EXPLOSION_MS,
+        life: EXPLOSION_MS,
     };
 
     game.explosions.push(explosion);
@@ -381,11 +388,11 @@ export function collectPowerUp(game, player) {
     return true;
 }
 
-export function applyExplosionDamage(game = {}, now = Date.now()) {
+export function applyExplosionDamage(game = {}) {
     let changed = false;
 
     for (const player of game.players) {
-        if (player.eliminated || player.invulnerableUntil > now) continue;
+        if (player.eliminated || player.invulnerable > 0) continue;
 
         const playerTile = { x: Math.round(player.x), y: Math.round(player.y) };
         const hit = game.explosions.some(explosion => explosion.tiles.some(tile => tile.x === playerTile.x && tile.y === playerTile.y));
@@ -401,7 +408,7 @@ export function applyExplosionDamage(game = {}, now = Date.now()) {
 
         player.x = player.spawnX;
         player.y = player.spawnY;
-        player.invulnerableUntil = now + 1200;
+        player.invulnerable = 1200;
     }
 
     return changed;
