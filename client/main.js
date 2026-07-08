@@ -2,6 +2,7 @@ import { createApp, createStore, h } from "../framework/index.js";
 import { BOARD_HEIGHT, BOARD_WIDTH, TILE_SIZE } from "../shared/game.js";
 
 const PLAYER_SIZE = 28;
+const SESSION_KEY = "bomberman:session";
 
 const KEYS = {
     arrowup: "up",
@@ -69,6 +70,8 @@ function reducer(state = initialState, action) {
             return { ...state, error: action.error };
         case "JOINED":
             return { ...state, joined: true, playerId: action.playerId, error: "" };
+        case "REJOIN_FAILED":
+            return { ...state, joined: false, playerId: null };
         case "SERVER_STATE":
             return { ...state, server: action.server };
         case "TICK":
@@ -417,11 +420,37 @@ function joinGame() {
     send({ type: "join", nickname });
 }
 
+function loadSession() {
+    try {
+        return JSON.parse(localStorage.getItem(SESSION_KEY));
+    } catch {
+        return null;
+    }
+}
+
+function saveSession(session) {
+    try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch {}
+}
+
+function clearSession() {
+    try {
+        localStorage.removeItem(SESSION_KEY);
+    } catch {}
+}
+
 function connect() {
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     socket = new WebSocket(`${protocol}://${location.host}`);
 
-    socket.addEventListener("open", () => store.dispatch({ type: "SOCKET_OPEN" }));
+    socket.addEventListener("open", () => {
+        store.dispatch({ type: "SOCKET_OPEN" });
+        const session = loadSession();
+        if (session && session.playerId && session.token) {
+            send({ type: "rejoin", playerId: session.playerId, token: session.token });
+        }
+    });
     socket.addEventListener("close", () => {
         store.dispatch({ type: "SOCKET_CLOSED" });
         setTimeout(connect, 1500);
@@ -441,7 +470,11 @@ function handleServerMessage(data) {
     if (message.type === "server_state") {
         store.dispatch({ type: "SERVER_STATE", server: message });
     } else if (message.type === "joined") {
+        saveSession({ playerId: message.playerId, token: message.token });
         store.dispatch({ type: "JOINED", playerId: message.playerId });
+    } else if (message.type === "rejoin_failed") {
+        clearSession();
+        store.dispatch({ type: "REJOIN_FAILED" });
     } else if (message.type === "error") {
         store.dispatch({ type: "SET_ERROR", error: message.message });
     }

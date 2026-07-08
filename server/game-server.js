@@ -27,6 +27,8 @@ export class BombermanServer {
         this.clients = new Map();
         this.players = [];
         this.inputs = {};
+        this.playerSockets = new Map();
+        this.tokens = new Map();
         this.chat = [];
         this.status = "lobby";
         this.countdownEndsAt = null;
@@ -70,6 +72,8 @@ export class BombermanServer {
 
         if (message.type === "join") {
             this.join(socket, message.nickname);
+        } else if (message.type === "rejoin") {
+            this.rejoin(socket, message.playerId, message.token);
         } else if (message.type === "input") {
             this.updateInput(socket, message.input);
         } else if (message.type === "chat") {
@@ -116,12 +120,36 @@ export class BombermanServer {
             nickname: cleanNickname,
             connected: true,
         };
+        const token = `t${Date.now()}${Math.random().toString(16).slice(2)}`;
 
         client.playerId = player.id;
         this.players.push(player);
         this.inputs[player.id] = {};
+        this.tokens.set(player.id, token);
+        this.playerSockets.set(player.id, socket);
         this.scheduleLobbyTimers();
-        this.send(socket, "joined", { playerId: player.id });
+        this.send(socket, "joined", { playerId: player.id, token });
+        this.broadcastState();
+    }
+
+    rejoin(socket, playerId, token) {
+        const client = this.clients.get(socket);
+        if (!client || client.playerId) return;
+
+        const player = this.players.find(candidate => candidate.id === playerId);
+        if (!player || this.tokens.get(playerId) !== token) {
+            this.send(socket, "rejoin_failed", {});
+            return;
+        }
+
+        client.playerId = playerId;
+        player.connected = true;
+        this.playerSockets.set(playerId, socket);
+        if (!this.inputs[playerId]) {
+            this.inputs[playerId] = {};
+        }
+
+        this.send(socket, "joined", { playerId, token });
         this.broadcastState();
     }
 
@@ -165,12 +193,13 @@ export class BombermanServer {
 
         this.clients.delete(socket);
 
-        if (client.playerId) {
+        if (client.playerId && this.playerSockets.get(client.playerId) === socket) {
             const player = this.players.find(candidate => candidate.id === client.playerId);
             if (player) {
                 player.connected = false;
             }
             delete this.inputs[client.playerId];
+            this.playerSockets.delete(client.playerId);
         }
 
         if (this.status === "lobby" || this.status === "countdown") {
