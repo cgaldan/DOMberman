@@ -109,13 +109,14 @@ body {
   font-size: 12px;
   font-weight: 800;
   color: #111;
-  will-change: transform;
 }
 
 .player-0 { background: #54a0ff; z-index: 2; }
 .player-1 { background: #ff6b6b; z-index: 2; }
 .player-2 { background: #feca57; z-index: 2; }
 .player-3 { background: #1dd1a1; z-index: 2; }
+
+.player-0, .player-1, .player-2, .player-3 { will-change: transform; }
 
 .entity.me {
   box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(255, 255, 255, 0.55);
