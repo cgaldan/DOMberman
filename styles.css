@@ -112,9 +112,13 @@ body {
   will-change: transform;
 }
 
-.player-0 {
-  background: #54a0ff;
-  z-index: 2;
+.player-0 { background: #54a0ff; z-index: 2; }
+.player-1 { background: #ff6b6b; z-index: 2; }
+.player-2 { background: #feca57; z-index: 2; }
+.player-3 { background: #1dd1a1; z-index: 2; }
+
+.entity.me {
+  box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(255, 255, 255, 0.55);
 }
 
 .entity.bomb {
@@ -180,6 +184,64 @@ body {
 
 .score-player { font-weight: 700; font-size: 12px; }
 .score-lives { opacity: 0.9; font-size: 12px; }
+
+.hero { text-align: center; }
+.hero h1, .lobby h1 { margin: 0 0 8px 0; }
+
+.status { color: #9fb0c8; margin: 6px 0; }
+.status.highlight { color: #ffe08a; font-weight: 700; }
+.error { color: #ff7675; margin-top: 8px; }
+
+.form-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.text-input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #2a3a54;
+  background: #0e1622;
+  color: var(--text);
+}
+
+button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #2a3a54;
+  background: #2b6cb0;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.5; cursor: default; }
+
+.player-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  min-width: 260px;
+}
+
+.player-card {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(18, 28, 44, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.banner {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  font-weight: 800;
+}
 
 @media (max-width: 980px) {
   .game-layout {
