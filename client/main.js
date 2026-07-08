@@ -21,6 +21,7 @@ const initialState = {
     socketOpen: false,
     error: "",
     server: null,
+    chatDraft: "",
 };
 
 const store = createStore(reducer, initialState);
@@ -72,6 +73,10 @@ function reducer(state = initialState, action) {
             return { ...state, server: action.server };
         case "TICK":
             return { ...state };
+        case "SET_CHAT_DRAFT":
+            return { ...state, chatDraft: action.text };
+        case "CLEAR_CHAT_DRAFT":
+            return { ...state, chatDraft: "" };
         default:
             return state;
     }
@@ -178,7 +183,10 @@ function gameView(state) {
                     staticGrid(game),
                     entitiesLayer(game, state.playerId),
                 ),
-                scoreboard(game),
+                h("aside", { className: "side-panel" },
+                    scoreboard(game),
+                    chatView(state),
+                ),
             ),
         ),
     );
@@ -266,6 +274,45 @@ function scoreboard(game) {
     );
 }
 
+function chatView(state) {
+    const messages = (state.server && state.server.chat) || [];
+
+    return h("div", { className: "chat" },
+        h("h3", {}, "Chat"),
+        h("div", { className: "chat-log" },
+            messages.slice(-40).map(message => h("div", { className: "chat-line" },
+                h("span", { className: "chat-nick" }, `${message.nickname}: `),
+                message.text,
+            )),
+        ),
+        h("form", {
+            className: "chat-form",
+            onSubmit: event => {
+                event.preventDefault();
+                sendChat();
+            },
+        },
+            h("input", {
+                className: "text-input chat-input",
+                value: state.chatDraft,
+                maxLength: "160",
+                placeholder: "Message",
+                onInput: event => store.dispatch({ type: "SET_CHAT_DRAFT", text: event.target.value }),
+            }),
+            h("button", { type: "submit" }, "Send"),
+        ),
+    );
+}
+
+function sendChat() {
+    const text = store.getState().chatDraft.trim();
+    if (!text) return;
+
+    send({ type: "chat", text });
+    store.dispatch({ type: "CLEAR_CHAT_DRAFT" });
+    focusApp();
+}
+
 function entityStyle(x, y) {
     const offset = (TILE_SIZE - PLAYER_SIZE) / 2;
     return {
@@ -284,6 +331,10 @@ function tileStyle(x, y) {
 }
 
 function handleKey(event, pressed) {
+    // Never treat keys typed inside a text field (chat/nickname) as movement.
+    const tag = event.target && event.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+
     const state = store.getState();
     const playing = state.joined && state.server && state.server.status === "playing";
     if (!playing) return;

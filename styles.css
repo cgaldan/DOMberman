@@ -185,6 +185,45 @@ body {
 .score-player { font-weight: 700; font-size: 12px; }
 .score-lives { opacity: 0.9; font-size: 12px; }
 
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 240px;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(18, 28, 44, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+
+.chat h3 {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 180px;
+  overflow-y: auto;
+}
+
+.chat-line { line-height: 1.35; word-break: break-word; }
+.chat-nick { font-weight: 700; color: #9fd3ff; }
+
+.chat-form { display: flex; gap: 6px; }
+.chat-form .text-input { flex: 1; min-width: 0; }
+
 .hero { text-align: center; }
 .hero h1, .lobby h1 { margin: 0 0 8px 0; }
 
