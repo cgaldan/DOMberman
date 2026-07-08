@@ -12,8 +12,8 @@ export const POWER_UP_CHANCE = 0.15;
 
 export const MAX_PLAYERS = 4;
 export const MIN_PLAYERS = 2;
-export const SERVER_TICK_MS = 50;
-export const SNAPSHOT_MS = 50;
+export const SERVER_TICK_MS = 16;
+export const SNAPSHOT_MS = 16;
 export const LOBBY_WAIT_MS = 20000;
 export const READY_COUNTDOWN_MS = 10000;
 
