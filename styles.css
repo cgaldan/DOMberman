@@ -212,14 +212,30 @@ body {
 
 .chat-log {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 4px;
   height: 180px;
   overflow-y: auto;
 }
 
-.chat-line { line-height: 1.35; word-break: break-word; }
+.chat-line {
+  align-self: flex-start;
+  max-width: 85%;
+  padding: 3px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.chat-line.mine {
+  align-self: flex-end;
+  background: rgba(84, 160, 255, 0.22);
+  text-align: right;
+}
+
 .chat-nick { font-weight: 700; color: #9fd3ff; }
+.chat-line.mine .chat-nick { color: #cfe6ff; }
 
 .chat-form { display: flex; gap: 6px; }
 .chat-form .text-input { flex: 1; min-width: 0; }

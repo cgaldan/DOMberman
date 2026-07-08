@@ -277,14 +277,18 @@ function scoreboard(game) {
 
 function chatView(state) {
     const messages = (state.server && state.server.chat) || [];
+    const myId = state.playerId;
 
     return h("div", { className: "chat" },
         h("h3", {}, "Chat"),
         h("div", { className: "chat-log" },
-            messages.slice(-40).map(message => h("div", { className: "chat-line" },
-                h("span", { className: "chat-nick" }, `${message.nickname}: `),
-                message.text,
-            )),
+            messages.slice(-40).reverse().map(message => {
+                const mine = message.playerId === myId;
+                return h("div", { className: `chat-line${mine ? " mine" : ""}` },
+                    h("span", { className: "chat-nick" }, mine ? "You: " : `${message.nickname}: `),
+                    message.text,
+                );
+            }),
         ),
         h("form", {
             className: "chat-form",
