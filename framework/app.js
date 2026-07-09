@@ -45,7 +45,7 @@ export function createApp({ root, router = null, store = null, view } = {}) {
         if (!mounted || renderQueued) return;
 
         renderQueued = true;
-        queueMicrotask(renderNow);
+        requestAnimationFrame(renderNow);
     }
 
     return {
