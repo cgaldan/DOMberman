@@ -368,6 +368,10 @@ function maybeSpawnPowerUp(game, x, y) {
         return;
     }
 
+    spawnRandomPowerUp(game, x, y);
+}
+
+function spawnRandomPowerUp(game, x, y) {
     const types = [POWER_UPS.BOMB, POWER_UPS.FLAME, POWER_UPS.SPEED, POWER_UPS.LIFE, POWER_UPS.BOMB_PASS];
     const type = types[Math.floor(Math.random() * types.length)];
     game.map.powerUps.push({ type, x, y });
@@ -410,6 +414,7 @@ export function applyExplosionDamage(game = {}) {
 
         changed = true;
         player.lives -= 1;
+        spawnRandomPowerUp(game, playerTile.x, playerTile.y);
         if (player.lives <= 0) {
             player.alive = false;
             player.eliminated = true;
