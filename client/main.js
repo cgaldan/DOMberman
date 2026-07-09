@@ -265,10 +265,11 @@ function powerUpViews(game) {
 }
 
 function powerUpLabel(type) {
-    if (type === "bomb") return "B";
-    if (type === "flame") return "F";
-    if (type === "life") return "♥";
-    return "S";
+    if (type === "bomb") return "💣";
+    if (type === "flame") return "🔥";
+    if (type === "life") return "❤️";
+    if (type === "bombpass") return "🟣";
+    return "⚡";
 }
 
 function bombViews(game) {

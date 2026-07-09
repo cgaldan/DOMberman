@@ -28,6 +28,7 @@ export const POWER_UPS = {
     FLAME: "flame",
     SPEED: "speed",
     LIFE: "life",
+    BOMB_PASS: "bombpass",
 };
 
 export const SPAWNS = [
@@ -89,6 +90,7 @@ export function createPlayer(player, index = 0) {
         eliminated: false,
         invulnerable: 0,
         connected: true,
+        bombPass: false,
     };
 }
 
@@ -156,7 +158,9 @@ export function movePlayer(game, player, input = {}, deltaMs = 0) {
     }
     
     const distance = player.speed * (deltaMs / 1000);
-    const passableBombs = bombsUnderPlayer(game, player);
+    const passableBombs = player.bombPass
+        ? new Set(game.bombs.map(bomb => tileKey(bomb.x, bomb.y)))
+        : bombsUnderPlayer(game, player);
     let moved = false;
 
     if (direction.x) {
@@ -364,7 +368,7 @@ function maybeSpawnPowerUp(game, x, y) {
         return;
     }
 
-    const types = [POWER_UPS.BOMB, POWER_UPS.FLAME, POWER_UPS.SPEED, POWER_UPS.LIFE];
+    const types = [POWER_UPS.BOMB, POWER_UPS.FLAME, POWER_UPS.SPEED, POWER_UPS.LIFE, POWER_UPS.BOMB_PASS];
     const type = types[Math.floor(Math.random() * types.length)];
     game.map.powerUps.push({ type, x, y });
 }
@@ -387,6 +391,8 @@ export function collectPowerUp(game, player) {
         player.speed = Math.min(player.speed + 1, BASE_SPEED + 4);
     } else if (powerUp.type === POWER_UPS.LIFE) {
         player.lives += 1;
+    } else if (powerUp.type === POWER_UPS.BOMB_PASS) {
+        player.bombPass = true;
     }
 
     return true;

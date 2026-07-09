@@ -147,11 +147,14 @@ body {
   z-index: 0;
 }
 
-.power-bomb { background: #ffd166; }
-.power-flame { background: #ff8c3b; }
-.power-speed { background: #5ce1a6; }
+.power-bomb { background: #f3ff51; }
+.power-flame { background: #a51c13; }
+.power-speed { background: #63af00; }
+.power-life { background: #ff7c90; }
+.power-bombpass { background: #005515; }
 
 .entity.eliminated { opacity: 0.32; }
+.entity.disconnected { opacity: 0.4; filter: grayscale(0.85); }
 
 .scoreboard-overlay {
   margin-left: 12px;
