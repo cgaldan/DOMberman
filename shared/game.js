@@ -27,6 +27,7 @@ export const POWER_UPS = {
     BOMB: "bomb",
     FLAME: "flame",
     SPEED: "speed",
+    LIFE: "life",
 };
 
 export const SPAWNS = [
@@ -363,7 +364,7 @@ function maybeSpawnPowerUp(game, x, y) {
         return;
     }
 
-    const types = [POWER_UPS.BOMB, POWER_UPS.FLAME, POWER_UPS.SPEED];
+    const types = [POWER_UPS.BOMB, POWER_UPS.FLAME, POWER_UPS.SPEED, POWER_UPS.LIFE];
     const type = types[Math.floor(Math.random() * types.length)];
     game.map.powerUps.push({ type, x, y });
 }
@@ -384,6 +385,8 @@ export function collectPowerUp(game, player) {
         player.flameRange += 1;
     } else if (powerUp.type === POWER_UPS.SPEED) {
         player.speed = Math.min(player.speed + 1, BASE_SPEED + 4);
+    } else if (powerUp.type === POWER_UPS.LIFE) {
+        player.lives += 1;
     }
 
     return true;

@@ -267,6 +267,7 @@ function powerUpViews(game) {
 function powerUpLabel(type) {
     if (type === "bomb") return "B";
     if (type === "flame") return "F";
+    if (type === "life") return "♥";
     return "S";
 }
 
